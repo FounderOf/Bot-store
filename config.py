@@ -13,13 +13,13 @@ class Config:
     """Central configuration class. All settings loaded from .env"""
 
     # ─── Discord ──────────────────────────────────────────────────────────────
-    TOKEN: str = os.getenv("TOKEN", "")
-    GUILD_ID: int = int(os.getenv("GUILD_ID", "0"))
-    ADMIN_ROLE_ID: int = int(os.getenv("ADMIN_ROLE_ID", "0"))
-    OWNER_ROLE_ID: int = int(os.getenv("OWNER_ROLE_ID", "0"))
-    TICKET_CATEGORY_ID: int = int(os.getenv("TICKET_CATEGORY_ID", "0"))
-    LOG_CHANNEL_ID: int = int(os.getenv("LOG_CHANNEL_ID", "0"))
-    STORE_CHANNEL_ID: int = int(os.getenv("STORE_CHANNEL_ID", "0"))
+    TOKEN: str = os.getenv("TOKEN", "MTUxOTg5NDY4ODY4NDA1MjU2MQ.GXf1az.HP7Hg_SNBkkLGNXrCxi-o7Gah6cQxzxlv3hNeE")
+    GUILD_ID: int = int(os.getenv("GUILD_ID", "1485010698579873892"))
+    ADMIN_ROLE_ID: int = int(os.getenv("ADMIN_ROLE_ID", "1485172521535013004"))
+    OWNER_ROLE_ID: int = int(os.getenv("OWNER_ROLE_ID", "1485172328575799457"))
+    TICKET_CATEGORY_ID: int = int(os.getenv("TICKET_CATEGORY_ID", "1485010699657674992"))
+    LOG_CHANNEL_ID: int = int(os.getenv("LOG_CHANNEL_ID", "1485172998091706430"))
+    STORE_CHANNEL_ID: int = int(os.getenv("STORE_CHANNEL_ID", "1519897647455014922"))
 
     # ─── Database ─────────────────────────────────────────────────────────────
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "database/store.db")
@@ -30,7 +30,7 @@ class Config:
     BOT_ACTIVITY: str = os.getenv("BOT_ACTIVITY", "watching")
 
     # ─── Store Settings ───────────────────────────────────────────────────────
-    STORE_NAME: str = os.getenv("STORE_NAME", "Premium Store")
+    STORE_NAME: str = os.getenv("STORE_NAME", "Doominiks Store")
     STORE_DESCRIPTION: str = os.getenv(
         "STORE_DESCRIPTION",
         "Temukan produk digital berkualitas dengan harga terjangkau!"
@@ -39,7 +39,7 @@ class Config:
     STORE_CURRENCY: str = os.getenv("STORE_CURRENCY", "Rp")
 
     # ─── Webhook Logging ──────────────────────────────────────────────────────
-    LOG_WEBHOOK_URL: str = os.getenv("LOG_WEBHOOK_URL", "")
+    LOG_WEBHOOK_URL: str = os.getenv("LOG_WEBHOOK_URL", "https://discord.com/api/webhooks/1485406771626508450/rhNL8fW03mUj3QHrVhfuRgExhtiaEzZhkj4ZKy4rJsqNzlc3XrgXFLSUIYMgoImp5P5C")
 
     # ─── Backup Settings ──────────────────────────────────────────────────────
     BACKUP_INTERVAL_HOURS: int = int(os.getenv("BACKUP_INTERVAL_HOURS", "24"))
