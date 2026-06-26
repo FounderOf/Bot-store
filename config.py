@@ -14,12 +14,12 @@ class Config:
 
     # ─── Discord ──────────────────────────────────────────────────────────────
     TOKEN: str = os.getenv("TOKEN", "0")
-    GUILD_ID: int = int(os.getenv("GUILD_ID", "1485010698579873892"))
-    ADMIN_ROLE_ID: int = int(os.getenv("ADMIN_ROLE_ID", "1485172521535013004"))
-    OWNER_ROLE_ID: int = int(os.getenv("OWNER_ROLE_ID", "1485172328575799457"))
-    TICKET_CATEGORY_ID: int = int(os.getenv("TICKET_CATEGORY_ID", "1485010699657674992"))
-    LOG_CHANNEL_ID: int = int(os.getenv("LOG_CHANNEL_ID", "1485172998091706430"))
-    STORE_CHANNEL_ID: int = int(os.getenv("STORE_CHANNEL_ID", "1519897647455014922"))
+    GUILD_ID: int = int(os.getenv("GUILD_ID", "0"))
+    ADMIN_ROLE_ID: int = int(os.getenv("ADMIN_ROLE_ID", "0"))
+    OWNER_ROLE_ID: int = int(os.getenv("OWNER_ROLE_ID", "0"))
+    TICKET_CATEGORY_ID: int = int(os.getenv("TICKET_CATEGORY_ID", "0"))
+    LOG_CHANNEL_ID: int = int(os.getenv("LOG_CHANNEL_ID", "0"))
+    STORE_CHANNEL_ID: int = int(os.getenv("STORE_CHANNEL_ID", "0"))
 
     # ─── Database ─────────────────────────────────────────────────────────────
     DATABASE_PATH: str = os.getenv("DATABASE_PATH", "database/store.db")
