@@ -44,6 +44,7 @@ CREATE_STOCKS = """
 CREATE TABLE IF NOT EXISTS stocks (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     product_id  INTEGER NOT NULL,
+    variant_id  INTEGER DEFAULT 0,
     content     TEXT NOT NULL,
     is_sold     INTEGER DEFAULT 0,
     sold_at     TIMESTAMP,
@@ -92,6 +93,10 @@ CREATE TABLE IF NOT EXISTS orders (
     discount_amount REAL DEFAULT 0,
     invoice_number  TEXT UNIQUE,
     notes           TEXT DEFAULT '',
+    variant_id      INTEGER DEFAULT 0,
+    variant_name    TEXT DEFAULT '',
+    payment_proof_url TEXT DEFAULT '',
+    proof_submitted INTEGER DEFAULT 0,
     created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(id)
@@ -214,3 +219,42 @@ DEFAULT_SETTINGS: list[tuple[str, str]] = [
     ("auto_close_ticket_hours", "24"),
     ("low_stock_threshold", "5"),
 ]
+
+# ─── v2 Tables ────────────────────────────────────────────────────────────────
+
+CREATE_PRODUCT_VARIANTS = """
+CREATE TABLE IF NOT EXISTS product_variants (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id  INTEGER NOT NULL,
+    name        TEXT NOT NULL,
+    price       REAL NOT NULL DEFAULT 0,
+    is_active   INTEGER DEFAULT 1,
+    position    INTEGER DEFAULT 0,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+);
+"""
+
+CREATE_RATINGS = """
+CREATE TABLE IF NOT EXISTS ratings (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    order_id     INTEGER NOT NULL UNIQUE,
+    user_id      INTEGER NOT NULL,
+    username     TEXT NOT NULL,
+    product_id   INTEGER NOT NULL,
+    product_name TEXT NOT NULL,
+    variant_name TEXT DEFAULT '',
+    rating       INTEGER NOT NULL CHECK(rating BETWEEN 1 AND 5),
+    review       TEXT DEFAULT '',
+    created_at   TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (order_id) REFERENCES orders(id)
+);
+"""
+
+# Append v2 tables to ALL_TABLES
+ALL_TABLES.extend([CREATE_PRODUCT_VARIANTS, CREATE_RATINGS])
+
+# Append v2 settings
+DEFAULT_SETTINGS.extend([
+    ("rating_channel_id", "0"),
+])
