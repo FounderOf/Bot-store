@@ -229,8 +229,19 @@ class ProductActionView(ui.View):
         self.add_item(refresh_btn)
 
     async def _buy_now(self, interaction: discord.Interaction) -> None:
+        from utils.embeds import error_embed
+
+        # Cek apakah produk punya varian
+        variants = await self.db.get_product_variants(self.product["id"])
+        if variants:
+            view = VariantSelectView(self.product, variants, self.payments, self.db)
+            return await interaction.response.send_message(
+                content="🎛️ Pilih tipe/varian produk:",
+                view=view,
+                ephemeral=True,
+            )
+
         if not self.payments:
-            from utils.embeds import error_embed
             return await interaction.response.send_message(
                 embed=error_embed("Error", "Tidak ada metode pembayaran tersedia."),
                 ephemeral=True,
@@ -537,4 +548,251 @@ class VoucherCreateModal(ui.Modal, title="🎟️ Buat Voucher"):
             actor_name=str(interaction.user),
             target=code,
             details=f"Type: {dtype}, Value: {val}, MaxUses: {max_uses}",
+        )
+
+
+# ─── Variant Select View ──────────────────────────────────────────────────────
+
+class VariantSelectView(ui.View):
+    """View untuk user memilih varian produk sebelum beli."""
+
+    def __init__(self, product, variants: list, payments: list, db: "Database") -> None:
+        super().__init__(timeout=180)
+        self.product = product
+        self.variants = variants
+        self.payments = payments
+        self.db = db
+
+        options = [
+            discord.SelectOption(
+                label=v["name"][:100],
+                value=str(v["id"]),
+                description=format_price(v["price"]),
+            )
+            for v in variants[:25]
+        ]
+        select = ui.Select(
+            placeholder="🎛️ Pilih Tipe/Varian...",
+            options=options,
+        )
+        select.callback = self._variant_selected
+        self.add_item(select)
+
+    async def _variant_selected(self, interaction: discord.Interaction) -> None:
+        from utils.embeds import error_embed, _base_embed
+        from config import Config
+
+        variant_id = int(interaction.data["values"][0])
+        variant = await self.db.get_variant(variant_id)
+        if not variant:
+            return await interaction.response.send_message(
+                embed=error_embed("Error", "Varian tidak ditemukan."), ephemeral=True
+            )
+
+        stock_count = await self.db.get_stock_count_by_variant(self.product["id"], variant_id)
+        payment_str = " • ".join(p["name"] for p in self.payments) if self.payments else "Tidak ada"
+
+        embed = _base_embed(
+            title=f"{self.product['emoji']} {self.product['name']}",
+            description=f"**Tipe:** {variant['name']}\n\n{self.product['description'] or ''}",
+            color=Config.COLOR_PRIMARY if stock_count > 0 else Config.COLOR_ERROR,
+        )
+        embed.add_field(name="💰 Harga", value=format_price(variant["price"]), inline=True)
+        embed.add_field(name="📦 Stok", value=f"**{stock_count}** tersedia" if stock_count > 0 else "❌ Habis", inline=True)
+        embed.add_field(name="💳 Payment", value=payment_str, inline=False)
+
+        if self.product["thumbnail_url"]:
+            embed.set_thumbnail(url=self.product["thumbnail_url"])
+
+        view = VariantActionView(self.product, variant, stock_count, self.payments, self.db)
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+
+class VariantActionView(ui.View):
+    """Buy / Refresh untuk produk dengan varian."""
+
+    def __init__(self, product, variant, stock_count: int, payments: list, db: "Database") -> None:
+        super().__init__(timeout=180)
+        self.product = product
+        self.variant = variant
+        self.db = db
+        self.payments = payments
+
+        buy_btn = ui.Button(
+            label="🛒 Beli Sekarang",
+            style=discord.ButtonStyle.success,
+            disabled=stock_count == 0,
+        )
+        buy_btn.callback = self._buy_now
+        self.add_item(buy_btn)
+
+        refresh_btn = ui.Button(
+            label="🔄 Refresh Stok",
+            style=discord.ButtonStyle.secondary,
+        )
+        refresh_btn.callback = self._refresh
+        self.add_item(refresh_btn)
+
+    async def _buy_now(self, interaction: discord.Interaction) -> None:
+        from utils.embeds import error_embed
+        if not self.payments:
+            return await interaction.response.send_message(
+                embed=error_embed("Error", "Tidak ada metode pembayaran."), ephemeral=True
+            )
+        view = VariantPaymentSelectView(self.product, self.variant, self.payments, self.db)
+        await interaction.response.send_message(
+            content="💳 Pilih metode pembayaran:", view=view, ephemeral=True
+        )
+
+    async def _refresh(self, interaction: discord.Interaction) -> None:
+        from utils.embeds import _base_embed
+        from config import Config
+        stock_count = await self.db.get_stock_count_by_variant(self.product["id"], self.variant["id"])
+        view = VariantActionView(self.product, self.variant, stock_count, self.payments, self.db)
+        embed = _base_embed(
+            title=f"{self.product['emoji']} {self.product['name']}",
+            description=f"**Tipe:** {self.variant['name']}",
+            color=Config.COLOR_PRIMARY if stock_count > 0 else Config.COLOR_ERROR,
+        )
+        embed.add_field(name="💰 Harga", value=format_price(self.variant["price"]), inline=True)
+        embed.add_field(name="📦 Stok", value=str(stock_count) if stock_count > 0 else "❌ Habis", inline=True)
+        await interaction.response.edit_message(embed=embed, view=view)
+
+
+class VariantPaymentSelectView(ui.View):
+    def __init__(self, product, variant, payments: list, db: "Database") -> None:
+        super().__init__(timeout=120)
+        self.product = product
+        self.variant = variant
+        self.db = db
+
+        options = [
+            discord.SelectOption(label=p["name"], value=str(p["id"]))
+            for p in payments[:25]
+        ]
+        select = ui.Select(placeholder="💳 Pilih Metode Pembayaran...", options=options)
+        select.callback = self._payment_selected
+        self.add_item(select)
+
+    async def _payment_selected(self, interaction: discord.Interaction) -> None:
+        from utils.embeds import error_embed
+        payment_id = int(interaction.data["values"][0])
+        payment = await self.db.get_payment(payment_id)
+        if not payment:
+            return await interaction.response.send_message(
+                embed=error_embed("Error", "Payment tidak ditemukan."), ephemeral=True
+            )
+        modal = VariantOrderModal(self.product, self.variant, payment, self.db)
+        await interaction.response.send_modal(modal)
+
+
+class VariantOrderModal(ui.Modal, title="📝 Detail Pembelian"):
+    voucher = ui.TextInput(label="Kode Voucher (opsional)", required=False, max_length=50)
+    notes = ui.TextInput(
+        label="Catatan (opsional)", required=False, max_length=300,
+        style=discord.TextStyle.paragraph,
+    )
+
+    def __init__(self, product, variant, payment, db: "Database") -> None:
+        super().__init__()
+        self.product = product
+        self.variant = variant
+        self.payment = payment
+        self.db = db
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        from cogs.order import process_purchase_variant
+        await process_purchase_variant(
+            interaction=interaction,
+            db=self.db,
+            product=self.product,
+            variant=self.variant,
+            payment=self.payment,
+            voucher_code=self.voucher.value.strip(),
+            notes=self.notes.value.strip(),
+        )
+
+
+# ─── Payment Proof View (Persistent) ─────────────────────────────────────────
+
+class PaymentProofView(ui.View):
+    """Tombol upload bukti pembayaran di ticket."""
+
+    def __init__(self, order_id: int, db: "Database") -> None:
+        super().__init__(timeout=None)
+        self.order_id = order_id
+        self.db = db
+
+    @ui.button(
+        label="📸 Upload Bukti Pembayaran",
+        style=discord.ButtonStyle.primary,
+        custom_id="ticket:upload_proof",
+    )
+    async def upload_proof(self, interaction: discord.Interaction, button: ui.Button) -> None:
+        from utils.embeds import error_embed
+        ticket = await self.db.get_ticket_by_channel(interaction.channel_id)
+        if not ticket:
+            return await interaction.response.send_message(
+                embed=error_embed("Error", "Ticket tidak ditemukan."), ephemeral=True
+            )
+        if interaction.user.id != ticket["user_id"]:
+            return await interaction.response.send_message(
+                embed=error_embed("Error", "Hanya pemilik ticket yang bisa upload bukti."), ephemeral=True
+            )
+        modal = PaymentProofModal(self.order_id, self.db)
+        await interaction.response.send_modal(modal)
+
+
+class PaymentProofModal(ui.Modal, title="📸 Upload Bukti Pembayaran"):
+    proof_url = ui.TextInput(
+        label="Link Screenshot Bukti Transfer",
+        placeholder="https://i.imgur.com/xxxxx.jpg",
+        max_length=500,
+    )
+    note = ui.TextInput(
+        label="Catatan Tambahan (opsional)",
+        required=False,
+        max_length=200,
+        style=discord.TextStyle.paragraph,
+    )
+
+    def __init__(self, order_id: int, db: "Database") -> None:
+        super().__init__()
+        self.order_id = order_id
+        self.db = db
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        import re
+        from utils.embeds import success_embed, error_embed
+        from config import Config
+
+        url = self.proof_url.value.strip()
+        if not re.match(r"https?://", url):
+            return await interaction.response.send_message(
+                embed=error_embed("URL Tidak Valid", "Link harus dimulai dengan https://"),
+                ephemeral=True,
+            )
+
+        await self.db.update_order(self.order_id, payment_proof_url=url, proof_submitted=1)
+
+        embed = discord.Embed(
+            title="📸 Bukti Pembayaran Diterima",
+            description=f"{interaction.user.mention} telah mengirim bukti pembayaran.",
+            color=Config.COLOR_INFO,
+        )
+        embed.set_image(url=url)
+        if self.note.value:
+            embed.add_field(name="📝 Catatan", value=self.note.value, inline=False)
+        embed.set_footer(text="Admin silakan verifikasi dan klik Konfirmasi.")
+
+        admin_role = interaction.guild.get_role(Config.ADMIN_ROLE_ID)
+        ping = admin_role.mention if admin_role else "Admin"
+
+        await interaction.channel.send(
+            content=f"🔔 **Bukti pembayaran baru!** {ping}",
+            embed=embed,
+        )
+        await interaction.response.send_message(
+            embed=success_embed("Bukti Terkirim!", "Bukti pembayaran sudah dikirim ke admin. Tunggu konfirmasi ya!"),
+            ephemeral=True,
         )
