@@ -13,7 +13,7 @@ class Config:
     """Central configuration class. All settings loaded from .env"""
 
     # ─── Discord ──────────────────────────────────────────────────────────────
-    TOKEN: str = os.getenv("TOKEN", "MTUxOTg5NDY4ODY4NDA1MjU2MQ.GXf1az.HP7Hg_SNBkkLGNXrCxi-o7Gah6cQxzxlv3hNeE")
+    TOKEN: str = os.getenv("TOKEN", "0")
     GUILD_ID: int = int(os.getenv("GUILD_ID", "1485010698579873892"))
     ADMIN_ROLE_ID: int = int(os.getenv("ADMIN_ROLE_ID", "1485172521535013004"))
     OWNER_ROLE_ID: int = int(os.getenv("OWNER_ROLE_ID", "1485172328575799457"))
